@@ -185,5 +185,84 @@ calibrator(c(.2, .3, .01, .001, .03, .0005), .5)
 convert_e_vals_to_p_vals(calibrator(c(.2, .3, .01, .001, .03, .0005), .5))
 ```
 
+# trying to simulate e values using the product of X_ks
 
+
+
+
+
+```{r}
+
+set.seed(12)
+all_indices <- 1:1000
+null_indices <- sample(1000, 500)
+signal_indices <- all_indices[-null_indices]
+fdp_vec <- c()
+NUM_TRIALS <- 1000
+e_values <- numeric(1000)
+
+for (j in 1:NUM_TRIALS) {
+  null_e_values <- rexp(500, 1.0001) 
+  signal_e_values <- rexp(500, .45)
+  for (i in 1:10) {
+    null_e_values <- null_e_values * rexp(500, 1.0001)
+    signal_e_values <- signal_e_values * rexp(500, .45)
+  }
+  
+  
+  e_values[null_indices] <- null_e_values
+  e_values[signal_indices] <- signal_e_values
+
+  rejected_indices <- e_BH(e_values, .1)
+
+  false_rejections <- intersect(null_indices, rejected_indices)
+
+  fdp_vec <- c(fdp_vec, ifelse(length(rejected_indices) > 0, 
+                           length(false_rejections) / length(rejected_indices),
+                           0))
+  
+}
+
+mean(fdp_vec)
+
+
+```
+
+
+```{r}
+
+set.seed(12)
+all_indices <- 1:1000
+null_indices <- sample(1000, 500)
+signal_indices <- all_indices[-null_indices]
+fdp_vec <- c()
+NUM_TRIALS <- 1000
+e_values <- numeric(1000)
+
+for (j in 1:NUM_TRIALS) {
+  null_e_values <- rexp(500, 2) + .5 * rchisq(500, 1)
+  signal_e_values <- rexp(500, .4)
+  for (i in 1:10) {
+    null_e_values <- null_e_values * (rexp(500, 2) + .5 * rchisq(500, 1))
+    signal_e_values <- signal_e_values * rexp(500, .4)
+  }
+  
+  
+  e_values[null_indices] <- null_e_values
+  e_values[signal_indices] <- signal_e_values
+
+  rejected_indices <- e_BH(e_values, .1)
+
+  false_rejections <- intersect(null_indices, rejected_indices)
+
+  fdp_vec <- c(fdp_vec, ifelse(length(rejected_indices) > 0, 
+                           length(false_rejections) / length(rejected_indices),
+                           0))
+  
+}
+
+mean(fdp_vec)
+
+
+```
 
