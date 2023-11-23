@@ -1,0 +1,189 @@
+---
+title: "Storey BH e values"
+author: "Ethan Naegele"
+date: "2023-11-20"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+# first, take a list of e values and convert them to p values
+convert_e_vals_to_p_vals <- function(e_vals){
+  # see equation (8) of Vovk and Wang - the canonical e value to p value conversion is the one given below
+  p_vals <- sapply(e_vals, function(x) min(1, 1/x))
+  return(p_vals)
+}
+```
+
+
+```{r}
+# run BH at level alpha given list of p values, return the indices of the rejected p values
+BH <- function(p_vals, alpha){
+  p_vals_adjusted <- p.adjust(p_vals, method = "BH")
+  rejected_indices <- which(p_vals_adjusted < alpha)
+  return(rejected_indices)
+}
+```
+
+
+
+```{r}
+# run the base e-BH procedure described in the paper - equivalent to running BH on the converted e values - come up with a list of the rejected indices - test is run at level alpha
+e_BH <- function(e_vals, alpha){
+  p_vals <- convert_e_vals_to_p_vals(e_vals)
+  return(BH(p_vals = p_vals, alpha = alpha))
+}
+```
+
+```{r}
+e_Storey_BH <- function(e_vals, alpha, gam){
+  p_vals <- convert_e_vals_to_p_vals(e_vals)
+  m <- length(p_vals)
+  num_p_vals_greater_than_gamma <- length(p_vals[p_vals > gam])
+  pi_0_hat <- (num_p_vals_greater_than_gamma + 1) / (m * (1 - gam))
+  return(BH(p_vals = p_vals, alpha = alpha / pi_0_hat))
+}
+```
+
+
+```{r}
+# BH follows expected behavior
+BH(c(0.01,0.001, 0.05, 0.20, 0.15, 0.15), .05)
+BH(c(0.01,0.001, 0.05, 0.20, 0.15, 0.15), .01)
+BH(c(0.01,0.001, 0.05, 0.20, 0.15, 0.15), .001)
+```
+
+```{r}
+# testing e BH - getting the same results as BH when flipping the p values, as expected, because the e BH procedure will just flip them back
+
+e_vec <- 1 / c(0.01,0.001, 0.05, 0.20, 0.15, 0.15)
+e_BH(e_vec, .05)
+e_BH(e_vec, .01)
+e_BH(e_vec, .001)
+```
+
+
+```{r}
+# tried to create a simulation for e BH by putting various distributions in for signal e values and null e values - hardly ever any false rejections are made, seems hard to guess distributions for e values that give reasonable outputs. Here is an example of an attempt at generating e values
+set.seed(12)
+all_indices <- 1:1000
+null_indices <- 1:750
+signal_indices <- 751:1000
+fdp_vec <- c()
+NUM_TRIALS <- 1000
+
+
+# signals come from an exponential(1/5) distribution (and thus have mean 5), and nulls come from an exponential(2) distribution (and thus have mean 1/2 < 1)
+
+for (j in 1:NUM_TRIALS) {
+  signals <- rexp(250, 1/5)
+  nulls <- rexp(750, 2)
+
+  e_values <- c(nulls, signals)
+  
+  # p_values <- convert_e_vals_to_p_vals(e_values)
+
+  rejected_indices <- e_BH(e_values, .1)
+
+  false_rejections <- intersect(null_indices, rejected_indices)
+
+  fdp_vec <- c(fdp_vec, ifelse(length(rejected_indices) > 0, 
+                           length(false_rejections) / length(rejected_indices),
+                           0))
+  
+}
+
+mean(fdp_vec)
+```
+
+```{r}
+p_values <- convert_e_vals_to_p_vals(e_values)
+p_values
+```
+
+
+```{r}
+adjusted_ps <- p.adjust(p_values, method = "BH")
+rejections <- which(adjusted_ps < .1)
+rejected_indices
+```
+
+
+
+# Other attempt - trying to create e values using a calibrator
+
+```{r}
+# need to define a p value to e value converter - see Example 2 of the paper
+calibrator <- function(p_vals, lambda){
+  calibrated_p_vals <- sapply(p_vals, function(x) lambda * x^(lambda - 1))
+  return(calibrated_p_vals)
+}
+```
+
+
+
+```{r}
+set.seed(12)
+all_indices <- 1:1000
+null_indices <- 1:750
+signal_indices <- 751:1000
+fdp_vec <- c()
+NUM_TRIALS <- 100
+
+
+for (j in 1:NUM_TRIALS) {
+  signals <- runif(250)^4
+  nulls <- runif(750)
+
+  p_values <- c(nulls, signals)
+  
+  e_values <- calibrator(p_values, .3)
+
+  rejected_indices <- e_BH(e_values, .1)
+
+  false_rejections <- intersect(null_indices, rejected_indices)
+
+  fdp_vec <- c(fdp_vec, ifelse(length(rejected_indices) > 0, 
+                           length(false_rejections) / length(rejected_indices),
+                           0))
+  
+}
+
+mean(fdp_vec)
+
+
+```
+
+
+
+```{r}
+calibrator(c(.2, .3), .5)
+convert_e_vals_to_p_vals(calibrator(c(.2, .3), .5))
+```
+
+```{r}
+calibrator(c(.2, .3), .1)
+convert_e_vals_to_p_vals(calibrator(c(.2, .3), .1))
+```
+
+
+
+```{r}
+calibrator(c(.2, .3), .7)
+convert_e_vals_to_p_vals(calibrator(c(.2, .3), .7))
+```
+
+
+```{r}
+# using a p value to e value converter, then converting back to p values in order to do the procedure, does not preserve the values of the original p values - they are way off
+calibrator(c(.2, .3, .01, .001, .03, .0005), .5)
+convert_e_vals_to_p_vals(calibrator(c(.2, .3, .01, .001, .03, .0005), .5))
+```
+
+
+
