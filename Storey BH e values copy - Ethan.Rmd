@@ -25,7 +25,7 @@ convert_e_vals_to_p_vals <- function(e_vals){
 # run BH at level alpha given list of p values, return the indices of the rejected p values
 BH <- function(p_vals, alpha){
   p_vals_adjusted <- p.adjust(p_vals, method = "BH")
-  rejected_indices <- which(p_vals_adjusted < alpha)
+  rejected_indices <- which(p_vals_adjusted <= alpha)
   return(rejected_indices)
 }
 ```
@@ -41,11 +41,24 @@ e_BH <- function(e_vals, alpha){
 ```
 
 ```{r}
-e_Storey_BH <- function(e_vals, alpha, gam){
+e_Storey_BH <- function(e_vals, alpha) {#, gam){
+  # p_vals <- convert_e_vals_to_p_vals(e_vals)
+  # m <- length(p_vals)
+  # num_p_vals_greater_than_gamma <- length(p_vals[p_vals > gam])
+  # pi_0_hat <- (num_p_vals_greater_than_gamma + 1) / (m * (1 - gam))
+  # print(pi_0_hat)
+  e_vals_sorted <- sort(e_vals)
+  k_hat <- 0
+  for (i in (1:length(e_values))) {
+    first_i <- e_vals_sorted[1:i]
+    if (mean(first_i) <= 1) {
+      k_hat <- i
+    } else {
+      break
+    }
+  }
+  pi_0_hat <- (1 + k_hat) / length(e_vals)
   p_vals <- convert_e_vals_to_p_vals(e_vals)
-  m <- length(p_vals)
-  num_p_vals_greater_than_gamma <- length(p_vals[p_vals > gam])
-  pi_0_hat <- (num_p_vals_greater_than_gamma + 1) / (m * (1 - gam))
   return(BH(p_vals = p_vals, alpha = alpha / pi_0_hat))
 }
 ```
@@ -71,9 +84,9 @@ e_BH(e_vec, .001)
 ```{r}
 # tried to create a simulation for e BH by putting various distributions in for signal e values and null e values - hardly ever any false rejections are made, seems hard to guess distributions for e values that give reasonable outputs. Here is an example of an attempt at generating e values
 set.seed(12)
-all_indices <- 1:1000
-null_indices <- 1:750
-signal_indices <- 751:1000
+all_indices <- 1:10
+null_indices <- 1:5
+signal_indices <- 6:10
 fdp_vec <- c()
 NUM_TRIALS <- 1000
 
@@ -81,10 +94,11 @@ NUM_TRIALS <- 1000
 # signals come from an exponential(1/5) distribution (and thus have mean 5), and nulls come from an exponential(2) distribution (and thus have mean 1/2 < 1)
 
 for (j in 1:NUM_TRIALS) {
-  signals <- rexp(250, 1/5)
-  nulls <- rexp(750, 2)
+  signals <- runif(5, 0, 1000)
+  nulls <- runif(5, 0, 2)
 
-  e_values <- c(nulls, signals)
+  e_values <- c(nulls, signals) 
+  e_values <- e_values * 2 # trivial boosting
   
   # p_values <- convert_e_vals_to_p_vals(e_values)
 
