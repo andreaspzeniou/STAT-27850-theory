@@ -221,9 +221,10 @@ null_indices <- sample(1000, 500)
 signal_indices <- all_indices[-null_indices]
 fdp_vec <- c()
 NUM_TRIALS <- 1000
-e_values <- numeric(1000)
+
 
 for (j in 1:NUM_TRIALS) {
+  e_values <- numeric(1000)
   null_e_values <- rexp(500, 1.0001) 
   signal_e_values <- rexp(500, .45)
   for (i in 1:10) {
@@ -259,9 +260,10 @@ null_indices <- sample(1000, 500)
 signal_indices <- all_indices[-null_indices]
 fdp_vec <- c()
 NUM_TRIALS <- 1000
-e_values <- numeric(1000)
+
 
 for (j in 1:NUM_TRIALS) {
+  e_values <- numeric(1000)
   null_e_values <- rexp(500, 2) + .5 * rchisq(500, 1)
   signal_e_values <- rexp(500, .4)
   for (i in 1:10) {
@@ -286,5 +288,10 @@ for (j in 1:NUM_TRIALS) {
 mean(fdp_vec)
 
 
+```
+
+
+```{r}
+p.adjust(c(.05, .1, .1, .1), method = "BH")
 ```
 
