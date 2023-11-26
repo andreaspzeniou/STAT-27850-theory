@@ -49,7 +49,7 @@ e_Storey_BH <- function(e_vals, alpha, gam){
   # print(pi_0_hat)
   e_vals_sorted <- sort(e_vals)
   k_hat <- 0
-  for (i in (1:length(e_values))) {
+  for (i in (1:length(e_vals))) {
     first_i <- e_vals_sorted[1:i]
     if (mean(first_i) <= 1+gam) {
       k_hat <- i
@@ -95,26 +95,40 @@ NUM_TRIALS <- 1000
 
 # signals come from an exponential(1/5) distribution (and thus have mean 5), and nulls come from an exponential(2) distribution (and thus have mean 1/2 < 1)
 
-for (j in 1:NUM_TRIALS) {
-  signals <- rnorm(200, -3, 1)
-  nulls <- runif(800, 0, 1)
+mu <- -3
+delta <- -3
+rho <- 0
+sqr = sqrt(rho) 
+K0 <- 200
 
-  e_values <- c(nulls, signals) 
-  e_values <- exp(-(e_values + 3) ^ 2 / 2) / exp(-e_values ^ 2 / 2)
+for (j in 1:NUM_TRIALS) {
+  
+  B = c(rep(0,len=K0),rep(1,len=K-K0))
+  B <- sample(B) 
+  
+  Z <- rnorm(1)
+  Y <- rnorm(K) 
+  X <- sqrt(1-sqr^2)*Y + sqr*Z + B*mu
+  
+  P <- 1-pnorm(X)
+  E <- exp(delta*X-delta^2/2)
+  PE <-1/P
+  
+  e_values <- E
   
   # p_values <- convert_e_vals_to_p_vals(e_values)
 
   rejected_indices <- e_BH(e_values, .1)# , 0.01)
 
-  false_rejections <- intersect(null_indices, rejected_indices)
-  true_rejections <- intersect(signal_indices, rejected_indices)
+  false_rejections <- intersect((1:1000)[-B], rejected_indices)
+  true_rejections <- intersect(B, rejected_indices)
 
   fdp_vec <- c(fdp_vec, ifelse(length(rejected_indices) > 0, 
                            length(false_rejections) / length(rejected_indices),
                            0))
   
   power_vec <- c(power_vec, ifelse(length(rejected_indices) > 0, 
-                           length(true_rejections) / length(signal_indices),
+                           length(true_rejections) / length(B),
                            0))
   
 }
