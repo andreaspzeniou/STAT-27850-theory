@@ -1,0 +1,113 @@
+---
+title: "Storey BH e values examples - Ethan"
+author: "Ethan Naegele"
+date: "2023-11-26"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+K_0_hat_calculator <- function(e_vals, gam){
+  e_vals_sorted <- sort(e_vals)
+  k_hat <- 0
+  for (i in (1:length(e_values))) {
+    first_i <- e_vals_sorted[1:i]
+    if (mean(first_i) <= 1+gam) {
+      k_hat <- i
+    } else {
+      break
+    }
+  }
+  return(k_hat)
+}
+```
+
+
+```{r}
+# all e values are null in this example - all have expectation at most 1
+# in this example, either fdp is .99 (roughly 10% of the time) or 0 - but FDR doesn't seem to go beyond alpha
+set.seed(12)
+NUM_TRIALS <- 1000
+fdp_vec <- c()
+
+for (j in 1:NUM_TRIALS) {
+  
+  m <- 100
+  e_1 <- runif(1)
+  if (e_1 < 19/20){
+    rest <- rep(0, times = m - 1)
+  }
+
+  else {
+    rest <- rep(20, times = m - 1)
+  }
+
+  e_values <- c(e_1, rest)
+  # alpha slighly higher than 1/10, and gamma does not affect the fdr
+  rejected_indices <- e_Storey_BH(e_values, .1, 0)
+  
+  fdp_vec <- c(fdp_vec, length(rejected_indices) / m)
+}
+
+mean(fdp_vec)
+
+
+
+```
+
+
+```{r}
+set.seed(12)
+NUM_TRIALS <- 2000
+k_hat_vec <- c()
+
+
+for (j in 1:NUM_TRIALS) {
+  
+  m <- 100
+  e_1 <- runif(1)
+  if (e_1 < 19/20){
+    rest <- rep(0, times = m - 1)
+  }
+
+  else {
+    rest <- rep(20, times = m - 1)
+  }
+
+  e_values <- c(e_1, rest)
+  # alpha slighly higher than 1/10, and gamma does not affect the fdr
+  rejected_indices <- e_Storey_BH(e_values, .06, 0)
+  
+  k_hat_vec <- c(k_hat_vec, K_0_hat_calculator(e_values, 0))
+  
+}
+
+
+num_underestimations <- length(k_hat_vec[k_hat_vec < m])
+num_underestimations / NUM_TRIALS
+```
+
+
+```{r}
+# all e values are null
+set.seed(12)
+NUM_TRIALS <- 2000
+k_hat_vec <- c()
+
+
+for (j in 1:NUM_TRIALS) {
+  
+  m <- 100
+  e_values <- rexp(m, rate = 1)
+  
+  k_hat_vec <- c(k_hat_vec, K_0_hat_calculator(e_values, 0))
+  
+}
+
+
+num_underestimations <- length(k_hat_vec[k_hat_vec < m])
+num_underestimations / NUM_TRIALS
+```
