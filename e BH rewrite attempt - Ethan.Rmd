@@ -1,0 +1,173 @@
+---
+title: "e BH rewrite attempt - Ethan"
+author: "Ethan Naegele"
+date: "2023-11-25"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+e_BH_2 <- function(e_vals, alpha){
+  m <- length(e_vals)
+  e_vals_sorted <- sort(e_vals, decreasing = TRUE)
+  k_stars <- c()
+  for (k in 1:m) {
+    if (k * e_vals_sorted[k] / m >= 1 / alpha){
+      k_stars <- c(k_stars, k)
+    }
+    
+  }
+  
+  if (length(k_stars) == 0){
+    rejected_indices <- integer(0)
+  }
+  else{
+    k_star <- max(k_stars)
+    rejected_e_vals <- e_vals_sorted[1:k_star]
+    # indices in the original list of e values
+    rejected_indices <- match(rejected_e_vals, e_vals)
+  }
+  return(length(rejected_indices))
+}
+```
+
+```{r}
+e_vec <- 1 / c(0.01,0.001, 0.05, 0.20, 0.15, 0.15)
+e_BH_2(e_vec, .05)
+e_BH_2(e_vec, .01)
+e_BH_2(e_vec, .001)
+```
+
+```{r}
+e_vec <- 1 / c(0.01,0.001, 0.05, 0.20, 0.15, 0.15)
+e_BH(e_vec, .05)
+e_BH(e_vec, .01)
+e_BH(e_vec, .001)
+```
+
+
+```{r}
+e_BH_original <- function(TE,alpha){
+  K <- length(TE)
+  TEsort <- sort(TE,decreasing=FALSE)
+  RE <- 0 
+  k <-1
+  while (k <K+1)
+  {
+    if (TEsort[k]<K/alpha/(K-k+1))
+    {
+      k=k+1
+    }
+    else {
+      RE=K-k+1
+      k=K+1
+    }
+  }
+  return(RE)
+}
+```
+
+
+```{r}
+e_vec <- 1 / c(0.01,0.001, 0.05, 0.20, 0.15, 0.15)
+e_BH_original(e_vec, .05)
+e_BH_original(e_vec, .01)
+e_BH_original(e_vec, .001)
+```
+
+
+```{r}
+
+set.seed(12)
+all_indices <- 1:1000
+null_indices <- sample(1000, 500)
+signal_indices <- all_indices[-null_indices]
+fdp_vec <- c()
+num_rejections_vec_mine <- c()
+NUM_TRIALS <- 1000
+
+
+for (j in 1:NUM_TRIALS) {
+  e_values <- numeric(1000)
+  null_e_values <- rexp(500, 2) + .5 * rchisq(500, 1)
+  signal_e_values <- rexp(500, .4)
+  for (i in 1:10) {
+    null_e_values <- null_e_values * (rexp(500, 2) + .5 * rchisq(500, 1))
+    signal_e_values <- signal_e_values * rexp(500, .4)
+  }
+  
+  
+  e_values[null_indices] <- null_e_values
+  e_values[signal_indices] <- signal_e_values
+
+  rejected_indices <- e_BH_2(e_values, .1)
+  num_rejections_vec_mine <- c(num_rejections_vec_mine, 
+                               length(rejected_indices))
+
+  #false_rejections <- intersect(null_indices, rejected_indices)
+
+  #fdp_vec <- c(fdp_vec, ifelse(length(rejected_indices) > 0, 
+                        #   length(false_rejections) / length(rejected_indices),
+                        #   0))
+  
+}
+
+#mean(fdp_vec)
+
+num_rejections_vec_mine
+
+
+```
+
+
+```{r}
+
+set.seed(12)
+all_indices <- 1:1000
+null_indices <- sample(1000, 500)
+signal_indices <- all_indices[-null_indices]
+fdp_vec <- c()
+num_rejections_vec_original <- c()
+NUM_TRIALS <- 1000
+
+
+for (j in 1:NUM_TRIALS) {
+  e_values <- numeric(1000)
+  null_e_values <- rexp(500, 2) + .5 * rchisq(500, 1)
+  signal_e_values <- rexp(500, .4)
+  for (i in 1:10) {
+    null_e_values <- null_e_values * (rexp(500, 2) + .5 * rchisq(500, 1))
+    signal_e_values <- signal_e_values * rexp(500, .4)
+  }
+  
+  
+  e_values[null_indices] <- null_e_values
+  e_values[signal_indices] <- signal_e_values
+
+  rejected_indices <- e_BH_original(e_values, .1)
+  num_rejections_vec_original <- c(num_rejections_vec_original, 
+                               length(rejected_indices))
+
+  #false_rejections <- intersect(null_indices, rejected_indices)
+
+  #fdp_vec <- c(fdp_vec, ifelse(length(rejected_indices) > 0, 
+                        #   length(false_rejections) / length(rejected_indices),
+                        #   0))
+  
+}
+
+#mean(fdp_vec)
+
+num_rejections_vec_original
+
+
+```
+
+
+```{r}
+unique(num_rejections_vec_mine == num_rejections_vec_original)
+```
+

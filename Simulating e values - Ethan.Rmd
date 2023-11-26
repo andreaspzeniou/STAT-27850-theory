@@ -1,0 +1,123 @@
+---
+title: "Simulating e values - Ethan"
+author: "Ethan Naegele"
+date: "2023-11-25"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(markovchain)
+set.seed(12)
+states <- c("0", "1", "2")
+transitionMatrix <- matrix(c(0.05, 0.9, 0.05,  # Probabilities from state 0 to 0,1,2
+                             0.05, 0.9, 0.05,  # Probabilities from state 1 to
+                             0.05, 0.95, 0.0), # Probabilities from state 2 to
+                           byrow = TRUE, nrow = 3, dimnames = list(states, states))
+mc <- new("markovchain", states = states, byrow = TRUE, transitionMatrix = transitionMatrix)
+initialState <- "0"
+nSteps <- 10
+null_chainSimulation <- as.integer(rmarkovchain(n = nSteps, object = mc, t0 = initialState))
+print(null_chainSimulation)
+mean(null_chainSimulation)
+
+```
+
+
+```{r}
+states <- c("0", "2", "3")
+set.seed(12)
+transitionMatrix <- matrix(c(0.05, 0.9, 0.05,  # Probabilities from state 0 to 0,1,2
+                             0.05, 0.9, 0.05,  # Probabilities from state 1 to
+                             0.05, 0.95, 0.0), # Probabilities from state 3 to 1, 2,
+                           byrow = TRUE, nrow = 3, dimnames = list(states, states))
+mc <- new("markovchain", states = states, byrow = TRUE, transitionMatrix = transitionMatrix)
+initialState <- "0"
+nSteps <- 10
+signal_chainSimulation <- as.integer(rmarkovchain(n = nSteps, object = mc, t0 = initialState))
+print(signal_chainSimulation)
+mean(signal_chainSimulation)
+```
+
+```{r}
+set.seed(12)
+m <- 500 # number of hypotheses/tests
+all_indices <- 1:m
+num_nulls <- 300
+null_indices <- sample(m, num_nulls)
+signal_indices <- all_indices[-null_indices]
+num_signals <- length(signal_indices)
+fdp_vec <- c()
+NUM_TRIALS <- 50
+
+
+null_states <- c("0", "1", "2")
+null_transitionMatrix <- matrix(c(0.05, 0.9, 0.05,  
+                             0.05, 0.9, 0.05,  
+                             0.05, 0.95, 0.0), 
+                           byrow = TRUE, nrow = 3, 
+                           dimnames = list(null_states, null_states))
+initialState <- "0"
+nSteps <- 10
+signal_states <- c("0", "2", "3")
+
+signal_transitionMatrix <- matrix(c(0.5, 0, 0.5,  
+                             0.5, 0.25, 0.25,  
+                             0.5, 0.25, 0.25), 
+                           byrow = TRUE, nrow = 3, 
+                           dimnames = list(signal_states, signal_states))
+
+
+for (j in 1:NUM_TRIALS) {
+  null_e_values <- c()
+  signal_e_values <- c()
+  
+  for (i in 1:num_nulls){
+    mc <- new("markovchain", 
+            states = null_states, 
+            byrow = TRUE, 
+            transitionMatrix = null_transitionMatrix)
+  
+  
+  null_chainSimulation <- as.integer(rmarkovchain(n = nSteps, 
+                                                  object = mc, 
+                                                  t0 = initialState))
+  null_e_values <- c(null_e_values, mean(null_chainSimulation))
+  }
+  
+  for (i in 1:num_signals) {
+     mc <- new("markovchain", 
+            states = signal_states, 
+            byrow = TRUE, 
+            transitionMatrix = signal_transitionMatrix)
+  signal_chainSimulation <- as.integer(rmarkovchain(n = nSteps, 
+                                                  object = mc, 
+                                                  t0 = initialState))
+  signal_e_values <- c(signal_e_values, mean(signal_chainSimulation))
+  }
+  
+  e_values[null_indices] <- null_e_values
+  e_values[signal_indices] <- signal_e_values
+
+  rejected_indices <- e_BH(e_values, .1)
+
+  false_rejections <- intersect(null_indices, rejected_indices)
+
+  fdp_vec <- c(fdp_vec, ifelse(length(rejected_indices) > 0, 
+                           length(false_rejections) / length(rejected_indices),
+                           0))
+  
+}
+
+mean(fdp_vec)
+
+
+```
+```
+
+
+
+
