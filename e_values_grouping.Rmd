@@ -1,0 +1,200 @@
+---
+title: "E-Values Grouping"
+output: html_document
+date: "2023-11-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+# Current Iteration of E-Values using Example Calibrator (2)
+example_calibrator <- function(p_vals, h) {
+  e_vals <- sapply(p_vals, function(x) h * x^(h - 1))
+  return(e_vals)
+}
+
+# Function for generating certain number of null E-vals
+generate_null_eval <- function(num) {
+  null_p_vals <- runif(num, min = 0, max = 1)
+  return(example_calibrator(null_p_vals, 0.5))
+}
+
+# Function for generating certain numbers of signal E-vals
+generate_signal_eval <- function(num) {
+  sig_p_vals <- runif(num, min = 0, max = 1)^4
+  return(example_calibrator(sig_p_vals, 0.3))
+}
+  
+```
+
+```{r}
+# Define Constants
+n <- 1000
+trials <- 1000
+group_num <- 20
+group_size <- 50
+alpha <- 0.1
+```
+
+```{r}
+# Without Grouping - Method 1
+
+# Shells for Trials
+FDR_vect <- c()
+power_vect <- c()
+
+#Running Trials
+for (k in 1:trials) {
+  # Create sample
+  
+  list_evals <- list()
+  
+  for (i in 1:group_num) {
+    if (i <= 15) {
+      nulls <- generate_null_eval(50)
+      nulls[nulls < 1] <- 1
+      list_evals <- append(list_evals, list(nulls))
+    } else {
+      full_group <- numeric(group_size)
+      for (i in 1:group_size) {
+        if (i %% 2 == 0) {
+          # Even indices: null e vals
+          full_group[i] <- generate_null_eval(1)
+        } else {
+          # Odd indices: signal e vals
+          full_group[i] <- generate_signal_eval(1)
+        }
+      }
+      list_evals <- append(list_evals, list(full_group))
+    }
+  }
+  
+  vect_evals <- unlist(list_evals)
+  
+  # Running BH on the entire set of 1000 e-values, ignoring the groups
+  converted_evals <- 1/vect_evals
+  adjusted_converted_evals <- p.adjust(converted_evals, method = "BH")
+  signal_indices <- which(adjusted_converted_evals < alpha)
+  
+  # Calculating FDR
+  total_discoveries <- length(signal_indices)
+  true_discoveries <- sum(signal_indices > 750 & signal_indices < 1000 & signal_indices %% 2 == 1)
+  fdr_ratio <- true_discoveries/total_discoveries
+  if (is.nan(fdr_ratio)) {
+    fdr_ratio <- 1
+  }
+  FDR <- 1 - fdr_ratio
+  FDR_vect <- c(FDR_vect, FDR)
+  
+  # Calculating Power
+  total_signals <- 125
+  power_ratio <- (total_signals - true_discoveries) / total_signals
+  if (is.nan(power_ratio)) {
+    power_ratio <- 1
+  }
+  power <- 1 - power_ratio
+  power_vect <- c(power_vect, power)
+  
+}
+
+cat("The non grouping procedure produced FDR (on avg over trials): \n", mean(FDR_vect), "\n")
+cat("The non grouping procedure produced Power (on avg over trials): \n", mean(power_vect), "\n")
+
+
+```
+
+
+```{r}
+# With Grouping - Method 2 - Using E values directly
+
+# Shells for Trials
+FDR_vect_new <- c()
+power_vect_new <- c()
+
+for (k in 1:trials) {
+  # Create sample
+  
+  list_evals <- list()
+  
+  for (i in 1:group_num) {
+    if (i <= 15) {
+      nulls <- generate_null_eval(50)
+      nulls[nulls < 1] <- 1
+      list_evals <- append(list_evals, list(nulls))
+    } else {
+      full_group <- numeric(group_size)
+      for (i in 1:group_size) {
+        if (i %% 2 == 0) {
+          # Even indices: null evals
+          full_group[i] <- generate_null_eval(1)
+        } else {
+          # Odd indices: signal evals
+          full_group[i] <- generate_signal_eval(1)
+        }
+      }
+      full_group[full_group < 1] <- 1
+      list_evals <- append(list_evals, list(full_group))
+    }
+  }
+  
+  vect_evals <- unlist(list_evals)
+  
+  # Figuring out which groups to keep
+  kept_groups <- c()
+  
+  for (i in 1:group_num) {
+    e_tildas <- c()
+    current_evals <- unlist(list_evals[i])
+    for (e in current_evals) {
+      e_t <- rbinom(1, size = 1, prob = 1/e)
+      e_tildas <- c(e_tildas, e_t)
+    }
+    count_zeroes <- sum(e_tildas == 0)
+    if (count_zeroes >= 10) {
+      kept_groups <- c(kept_groups, TRUE)
+    } else {
+      kept_groups <- c(kept_groups, FALSE)
+    }
+  }
+  
+  kept_groups_indices <- which(kept_groups)
+  
+  # Running e_BH on remaining data
+  kept_evals <- list_evals[kept_groups_indices]
+  new_n <- length(kept_groups_indices) * group_size
+  n_null_groups <- sum(kept_groups_indices < 16) * group_size
+  
+  kept_evals_vect <- unlist(kept_evals)
+  kept_converted_evals_vect <- 1/kept_evals_vect
+  kept_adjusted_converted_evals <- p.adjust(kept_converted_evals_vect, method = "BH")
+  kept_signal_indices <- which(kept_adjusted_converted_evals < alpha)
+  
+  # Calculating FDR and Power for above procedure
+  kept_total_discoveries <- length(kept_signal_indices)
+  kept_true_discoveries <- sum(kept_signal_indices > n_null_groups & 
+                                 kept_signal_indices < new_n & kept_signal_indices %% 2 == 1)
+  ratio_fdr <- kept_true_discoveries/kept_total_discoveries
+  if (is.nan(ratio_fdr)) {
+    ratio_fdr <- 1
+  }
+  kept_FDR <- 1 - ratio_fdr
+  FDR_vect_new <- c(FDR_vect_new, kept_FDR)
+  
+  # Calculating Power
+  kept_total_signals <- (new_n - n_null_groups) / 2
+  ratio_power <- (kept_total_signals - kept_true_discoveries) /kept_total_signals
+  if (is.nan(ratio_power)) {
+    ratio_power <- 1
+  }
+  kept_power <- 1 - ratio_power
+  power_vect_new <- c(power_vect_new, kept_power)
+  
+}
+
+cat("The grouping procedure produced FDR (on avg over trials): \n", mean(FDR_vect_new), "\n")
+cat("The grouping procedure produced Power (on avg over trials): \n", mean(power_vect_new), "\n")
+
+```
