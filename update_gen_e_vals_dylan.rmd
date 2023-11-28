@@ -1,0 +1,158 @@
+```{r}
+# first, take a list of e values and convert them to p values
+convert_e_vals_to_p_vals <- function(e_vals){
+  # see equation (8) of Vovk and Wang - the canonical e value to p value conversion is the one given below
+  p_vals <- sapply(e_vals, function(x) min(1, 1/x))
+  return(p_vals)
+}
+```
+
+
+```{r}
+# run BH at level alpha given list of p values, return the indices of the rejected p values
+BH <- function(p_vals, alpha){
+  p_vals_adjusted <- p.adjust(p_vals, method = "BH")
+  rejected_indices <- which(p_vals_adjusted <= alpha)
+  return(rejected_indices)
+}
+```
+
+
+```{r}
+# run the base e-BH procedure described in the paper - equivalent to running BH on the converted e values - come up with a list of the rejected indices - test is run at level alpha
+e_BH <- function(e_vals, alpha){
+  p_vals <- convert_e_vals_to_p_vals(e_vals)
+  return(BH(p_vals = p_vals, alpha = alpha))
+}
+```
+
+```{r}
+#Generating e-values and using e_BH -> Testing FDP and Power 
+
+#Function that takes in the proportion of nulls, the number of trials, alpha,
+#and delta, which is the mean of the distribution from which the signals are picked from
+#Outputs FDP and power when using e_BH 
+test_gen_e_val <- function(null_prop=0.2, num_trials=1000, alpha=0.1, delta=-4) {
+  
+  set.seed(12)
+  all_indices <- 1:num_trials
+  NUM_TRIALS <- num_trials
+  
+  number_null <- null_prop * num_trials
+  null_indices <- 1:number_null
+  
+  number_signal <- (1-null_prop) * num_trials
+  
+  signal_indices <- number_null+1:NUM_TRIALS
+  fdp_vec <- c()
+  power_vec <- c()
+
+  for (j in 1:NUM_TRIALS) {
+    signals <- rnorm(number_signal, delta, 1)
+    nulls <- rnorm(number_null, 0, 1)
+  
+    observations <- c(nulls, signals) 
+    e_values <- exp(observations * delta - delta^2 / 2)
+    
+    #Using Ethan's e_BH
+    rejected_indices <- e_BH(e_values, alpha)
+  
+    false_rejections <- intersect(null_indices, rejected_indices)
+    true_rejections <- intersect(signal_indices, rejected_indices)
+  
+    fdp <- length(false_rejections) / max(1, length(rejected_indices))
+    power <- length(true_rejections) / length(signal_indices)
+
+    fdp_vec <- c(fdp_vec, fdp)
+    power_vec <- c(power_vec, power)
+  }
+  
+  # Print mean FDP
+  cat("Mean FDP:", mean(fdp_vec), "\n")
+  
+  # Print mean Power
+  cat("Mean Power:", mean(power_vec), "\n")
+}
+
+```
+
+
+```{r}
+#Generating p-values -> Testing FDP and Power
+
+#Function that takes in the proprtion of nulls, the number of trials, alpha,
+#and delta, which is the mean of the distribution from which the signals are picked from
+#Outputs FDP and power when using BH
+test_gen_p_val <- function(null_prop=0.2, num_trials=1000, alpha=0.1, delta=-4) {
+  
+  set.seed(13)
+  all_indices <- 1:num_trials
+  NUM_TRIALS <- num_trials
+  
+  number_null <- null_prop * num_trials
+  null_indices <- 1:number_null
+  
+  number_signal <- (1-null_prop) * num_trials
+  
+  signal_indices <- number_null+1:NUM_TRIALS
+  fdp_vec <- c()
+  power_vec <- c()
+
+
+  for (j in 1:NUM_TRIALS) {
+    signals <- rnorm(number_signal, delta, 1)
+    nulls <- rnorm(number_null, 0, 1)
+  
+    observations <- c(nulls, signals) 
+    p_values <- pnorm(observations)
+  
+    rejected_indices <- BH(p_values, alpha)
+  
+    false_rejections <- intersect(null_indices, rejected_indices)
+    true_rejections <- intersect(signal_indices, rejected_indices)
+  
+    fdp <- length(false_rejections) / max(1, length(rejected_indices))
+    power <- length(true_rejections) / length(signal_indices)
+    
+    # Append to vectors
+    fdp_vec <- c(fdp_vec, fdp)
+    power_vec <- c(power_vec, power)
+  }
+  
+  # Print mean FDP
+  cat("Mean FDP:", mean(fdp_vec), "\n")
+  
+  # Print mean Power
+  cat("Mean Power:", mean(power_vec), "\n")
+}
+
+```
+
+```{r}
+#Delta is the mean from the normal distribution from which the signals are picked from
+#The first n e-values come from the null distribution; the next total_samples - n e-values 
+#come from the alternate distribution
+#Function that generates e_values
+gen_e_val <- function(null_prop=0.2, total_samples=1000, alpha=0.1, delta=-4) {
+  
+  set.seed(12)
+  num <- total_samples
+  
+  number_null <- null_prop * num
+  null_indices <- 1:number_null
+  
+  number_signal <- (1-null_prop) * num
+  
+  signal_indices <- number_null+1:num
+
+  signals <- rnorm(number_signal, delta, 1)
+  nulls <- rnorm(number_null, 0, 1)
+
+  observations <- c(nulls, signals) 
+  e_values <- exp(observations * delta - delta^2 / 2)
+  
+  return(e_values)
+    
+}
+
+```
