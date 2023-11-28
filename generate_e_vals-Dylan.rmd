@@ -1,0 +1,85 @@
+```{r}
+#Generating e-values
+set.seed(12)
+all_indices <- 1:1000
+null_indices <- 1:200
+signal_indices <- 201:1000
+fdp_vec <- c()
+power_vec <- c()
+NUM_TRIALS <- 1000
+delta <- -4
+
+
+for (j in 1:1) {
+  signals <- rnorm(800, delta, 1)
+  nulls <- rnorm(200, 0, 1)
+
+  observations <- c(nulls, signals) 
+  e_values <- exp(observations * delta - delta^2 / 2)
+  
+  #Using Ethan's e_BH
+  rejected_indices <- e_BH(e_values, .1)# , 0.01)
+
+  false_rejections <- intersect(null_indices, rejected_indices)
+  true_rejections <- intersect(signal_indices, rejected_indices)
+
+  fdp <- length(false_rejections) / max(1, length(rejected_indices))
+  power <- length(true_rejections) / length(signal_indices)
+  
+  print(e_values)
+  p_values <- convert_e_vals_to_p_vals(e_values)
+  print(p_values)
+  # Append to vectors
+  fdp_vec <- c(fdp_vec, fdp)
+  power_vec <- c(power_vec, power)
+}
+
+# Print mean FDP
+cat("Mean FDP:", mean(fdp_vec), "\n")
+
+# Print mean Power
+cat("Mean Power:", mean(power_vec), "\n")
+
+```
+
+
+```{r}
+#Generating p-values
+set.seed(12)
+all_indices <- 1:1000
+null_indices <- 1:200
+signal_indices <- 201:1000
+fdp_vec <- c()
+power_vec <- c()
+NUM_TRIALS <- 1000
+delta <- -4
+
+
+for (j in 1:NUM_TRIALS) {
+  signals <- rnorm(800, delta, 1)
+  nulls <- rnorm(200, 0, 1)
+
+  observations <- c(nulls, signals) 
+  p_values <- pnorm(observations)
+
+  rejected_indices <- BH(p_values, .1)# , 0.01)
+
+  false_rejections <- intersect(null_indices, rejected_indices)
+  true_rejections <- intersect(signal_indices, rejected_indices)
+
+  fdp <- length(false_rejections) / max(1, length(rejected_indices))
+  power <- length(true_rejections) / length(signal_indices)
+  
+  # Append to vectors
+  fdp_vec <- c(fdp_vec, fdp)
+  power_vec <- c(power_vec, power)
+}
+
+# Print mean FDP
+cat("Mean FDP:", mean(fdp_vec), "\n")
+
+# Print mean Power
+cat("Mean Power:", mean(power_vec), "\n")
+
+
+```
