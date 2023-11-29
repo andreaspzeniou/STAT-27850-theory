@@ -9,6 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+# First model
 
 # Current Iteration of E-Values using Example Calibrator (2)
 example_calibrator <- function(p_vals, h) {
@@ -28,6 +29,54 @@ generate_signal_eval <- function(num) {
   return(example_calibrator(sig_p_vals, 0.3))
 }
   
+```
+
+```{r}
+# Second Model
+
+#Delta is the mean from the normal distribution from which the signals are picked from
+#The first n e-values come from the null distribution; the next total_samples - n e-values 
+#come from the alternate distribution
+#Function that generates e_values
+gen_e_val <- function(null_prop=0.2, total_samples=1000, alpha=0.1, delta=-4) {
+  
+  num <- total_samples
+  
+  number_null <- null_prop * num
+  null_indices <- 1:number_null
+  
+  number_signal <- (1-null_prop) * num
+  
+  signal_indices <- number_null+1:num
+
+  signals <- rnorm(number_signal, delta, 1)
+  nulls <- rnorm(number_null, 0, 1)
+
+  observations <- c(nulls, signals) 
+  e_values <- exp(observations * delta - delta^2 / 2)
+  
+  return(e_values)
+    
+}
+
+```
+
+```{r}
+# Function for generating certain number of null E-vals
+generate_null_eval1 <- function(num) {
+  vect <- gen_e_val()
+  null_vect <- vect[1:200]
+  random_null_entries <- sample(null_vect, num)
+  return(random_null_entries)
+}
+
+# Function for generating certain numbers of signal E-vals
+generate_signal_eval1 <- function(num) {
+  vect <- gen_e_val()
+  sig_vect <- vect[201:1000]
+  random_sig_entries <- sample(sig_vect, num)
+  return(random_sig_entries)
+}
 ```
 
 ```{r}
@@ -54,7 +103,7 @@ for (k in 1:trials) {
   
   for (i in 1:group_num) {
     if (i <= 15) {
-      nulls <- generate_null_eval(50)
+      nulls <- generate_null_eval1(50)
       nulls[nulls < 1] <- 1
       list_evals <- append(list_evals, list(nulls))
     } else {
@@ -62,10 +111,10 @@ for (k in 1:trials) {
       for (i in 1:group_size) {
         if (i %% 2 == 0) {
           # Even indices: null e vals
-          full_group[i] <- generate_null_eval(1)
+          full_group[i] <- generate_null_eval1(1)
         } else {
           # Odd indices: signal e vals
-          full_group[i] <- generate_signal_eval(1)
+          full_group[i] <- generate_signal_eval1(1)
         }
       }
       list_evals <- append(list_evals, list(full_group))
@@ -121,7 +170,7 @@ for (k in 1:trials) {
   
   for (i in 1:group_num) {
     if (i <= 15) {
-      nulls <- generate_null_eval(50)
+      nulls <- generate_null_eval1(50)
       nulls[nulls < 1] <- 1
       list_evals <- append(list_evals, list(nulls))
     } else {
@@ -129,10 +178,10 @@ for (k in 1:trials) {
       for (i in 1:group_size) {
         if (i %% 2 == 0) {
           # Even indices: null evals
-          full_group[i] <- generate_null_eval(1)
+          full_group[i] <- generate_null_eval1(1)
         } else {
           # Odd indices: signal evals
-          full_group[i] <- generate_signal_eval(1)
+          full_group[i] <- generate_signal_eval1(1)
         }
       }
       full_group[full_group < 1] <- 1
@@ -153,7 +202,7 @@ for (k in 1:trials) {
       e_tildas <- c(e_tildas, e_t)
     }
     count_zeroes <- sum(e_tildas == 0)
-    if (count_zeroes >= 10) {
+    if (count_zeroes >= 20) {
       kept_groups <- c(kept_groups, TRUE)
     } else {
       kept_groups <- c(kept_groups, FALSE)
