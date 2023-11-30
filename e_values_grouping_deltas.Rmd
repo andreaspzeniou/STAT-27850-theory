@@ -1,0 +1,283 @@
+---
+title: "E-Values Grouping Deltas"
+output: html_document
+date: "2023-11-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+```{r}
+# Second Model
+
+#Delta is the mean from the normal distribution from which the signals are picked from
+#The first n e-values come from the null distribution; the next total_samples - n e-values 
+#come from the alternate distribution
+
+#Function that generates e_values
+
+gen_e_val <- function(null_prop=0.2, total_samples=1000, alpha=0.1, delta=-4) {
+  
+  num <- total_samples
+  
+  number_null <- null_prop * num
+  null_indices <- 1:number_null
+  
+  number_signal <- (1-null_prop) * num
+  
+  signal_indices <- number_null+1:num
+
+  signals <- rnorm(number_signal, delta, 1)
+  nulls <- rnorm(number_null, 0, 1)
+
+  observations <- c(nulls, signals) 
+  e_values <- exp(observations * delta - delta^2 / 2)
+  
+  return(e_values)
+    
+}
+
+```
+
+```{r}
+# Function for generating certain number of null E-vals allowing for changes in delta
+generate_null_eval1 <- function(num, d) {
+  vect <- gen_e_val(delta = d)
+  null_vect <- vect[1:200]
+  random_null_entries <- sample(null_vect, num)
+  return(random_null_entries)
+}
+
+# Function for generating certain numbers of signal E-vals allowing for changes in delta
+generate_signal_eval1 <- function(num, d) {
+  vect <- gen_e_val(delta = d)
+  sig_vect <- vect[201:1000]
+  random_sig_entries <- sample(sig_vect, num)
+  return(random_sig_entries)
+}
+```
+
+```{r}
+# Define Constants
+n <- 1000
+trials <- 100
+group_num <- 20
+group_size <- 50
+alpha <- 0.1
+```
+
+
+```{r}
+# Comparison of Base e-BH vs. Grouping e-BH - Graphing FDR and Power for Various Deltas for both methods
+
+delta_trials <- seq(-6, -2, by = 0.25)
+avg_fdr_nongroup <- c()
+avg_power_nongroup <- c()
+avg_fdr_group <- c()
+avg_power_group <- c()
+
+# Method 1 - Non Grouping
+
+for (del in delta_trials) {
+  
+  # Shells for Trials
+  FDR_vect <- c()
+  power_vect <- c()
+  
+  #Running Trials
+  for (k in 1:trials) {
+    # Create sample
+    
+    list_evals <- list()
+    
+    for (i in 1:group_num) {
+      if (i <= 15) {
+        nulls <- generate_null_eval1(50, del)
+        list_evals <- append(list_evals, list(nulls))
+      } else {
+        full_group <- numeric(group_size)
+        for (i in 1:group_size) {
+          if (i %% 2 == 0) {
+            # Even indices: null e vals
+            full_group[i] <- generate_null_eval1(1, del)
+          } else {
+            # Odd indices: signal e vals
+            full_group[i] <- generate_signal_eval1(1, del)
+          }
+        }
+        list_evals <- append(list_evals, list(full_group))
+      }
+    }
+    
+    vect_evals <- unlist(list_evals)
+    
+    # Running BH on the entire set of 1000 e-values, ignoring the groups
+    converted_evals <- 1/vect_evals
+    adjusted_converted_evals <- p.adjust(converted_evals, method = "BH")
+    signal_indices <- which(adjusted_converted_evals < alpha)
+    
+    # Calculating FDR
+    total_discoveries <- length(signal_indices)
+    true_discoveries <- sum(signal_indices > 750 & signal_indices < 1000 & signal_indices %% 2 == 1)
+    fdr_ratio <- true_discoveries/total_discoveries
+    if (is.nan(fdr_ratio)) {
+      fdr_ratio <- 1
+    }
+    FDR <- 1 - fdr_ratio
+    FDR_vect <- c(FDR_vect, FDR)
+    
+    # Calculating Power
+    total_signals <- 125
+    power_ratio <- (total_signals - true_discoveries) / total_signals
+    if (is.nan(power_ratio)) {
+      power_ratio <- 1
+    }
+    power <- 1 - power_ratio
+    power_vect <- c(power_vect, power)
+    
+  }
+
+  avg_fdr_nongroup <- c(avg_fdr_nongroup, mean(FDR_vect))
+  avg_power_nongroup <- c(avg_power_nongroup, mean(power_vect))
+  
+}
+
+# Method 2 - Grouping
+
+for (del in delta_trials) {
+
+  # Shells for Trials
+  FDR_vect_new <- c()
+  power_vect_new <- c()
+  
+  for (k in 1:trials) {
+    # Create sample
+    
+    list_evals <- list()
+    
+    for (i in 1:group_num) {
+      if (i <= 15) {
+        nulls <- generate_null_eval1(50, del)
+        list_evals <- append(list_evals, list(nulls))
+      } else {
+        full_group <- numeric(group_size)
+        for (i in 1:group_size) {
+          if (i %% 2 == 0) {
+            # Even indices: null evals
+            full_group[i] <- generate_null_eval1(1, del)
+          } else {
+            # Odd indices: signal evals
+            full_group[i] <- generate_signal_eval1(1, del)
+          }
+        }
+        full_group[full_group < 1] <- 1
+        list_evals <- append(list_evals, list(full_group))
+      }
+    }
+    
+    vect_evals <- unlist(list_evals)
+    
+    # Figuring out which groups to keep
+    kept_groups <- c()
+    
+    for (i in 1:group_num) {
+      e_tildas <- c()
+      current_evals <- unlist(list_evals[i])
+      for (e in current_evals) {
+        if (e < 1) {
+          prob_e <- 1
+        } else {
+          prob_e <- 1/e
+        }
+        e_t <- rbinom(1, size = 1, prob = prob_e)
+        e_tildas <- c(e_tildas, e_t)
+      }
+      count_zeroes <- sum(e_tildas == 0)
+      if (count_zeroes >= 20) {
+        kept_groups <- c(kept_groups, TRUE)
+      } else {
+        kept_groups <- c(kept_groups, FALSE)
+      }
+    }
+    
+    kept_groups_indices <- which(kept_groups)
+    
+    # Running e_BH on remaining data
+    kept_evals <- list_evals[kept_groups_indices]
+    new_n <- length(kept_groups_indices) * group_size
+    n_null_groups <- sum(kept_groups_indices < 16) * group_size
+    
+    kept_evals_vect <- unlist(kept_evals)
+    kept_converted_evals_vect <- 1/kept_evals_vect
+    kept_adjusted_converted_evals <- p.adjust(kept_converted_evals_vect, method = "BH")
+    kept_signal_indices <- which(kept_adjusted_converted_evals < alpha)
+    
+    # Calculating FDR and Power for above procedure
+    kept_total_discoveries <- length(kept_signal_indices)
+    kept_true_discoveries <- sum(kept_signal_indices > n_null_groups & 
+                                   kept_signal_indices < new_n & kept_signal_indices %% 2 == 1)
+    ratio_fdr <- kept_true_discoveries/kept_total_discoveries
+    if (is.nan(ratio_fdr)) {
+      ratio_fdr <- 1
+    }
+    kept_FDR <- 1 - ratio_fdr
+    FDR_vect_new <- c(FDR_vect_new, kept_FDR)
+    
+    # Calculating Power
+    kept_total_signals <- (new_n - n_null_groups) / 2
+    ratio_power <- (kept_total_signals - kept_true_discoveries) /kept_total_signals
+    if (is.nan(ratio_power)) {
+      ratio_power <- 1
+    }
+    kept_power <- 1 - ratio_power
+    power_vect_new <- c(power_vect_new, kept_power)
+    
+  }
+  
+  avg_fdr_group <- c(avg_fdr_group, mean(FDR_vect_new))
+  avg_power_group <- c(avg_power_group, mean(power_vect_new))
+
+}
+
+```
+
+```{r}
+# Graphing FDR
+data <- data.frame(delta_trials, avg_fdr_nongroup, avg_fdr_group)
+ggplot(data, aes(x = delta_trials)) +
+  geom_line(aes(y = avg_fdr_nongroup), color = "blue", linetype = "solid", size = 1) +
+  geom_line(aes(y = avg_fdr_group), color = "red", linetype = "solid", size = 1) +
+  
+  geom_text(aes(x = max(delta_trials), y = max(avg_fdr_nongroup), label = "Base-eBH"), 
+            hjust = 1, vjust = 1, color = "blue") +
+  geom_text(aes(x = max(delta_trials), y = max(avg_fdr_group), label = "Grouping-eBH"), 
+            hjust = 1, vjust = -0.5, color = "red") +
+  
+  labs(title = "Comparing FDR of Grouping vs. Non Grouping",
+       x = "Delta Values",
+       y = "Average FDR Across Trials") +
+  
+  theme_minimal()
+```
+
+```{r}
+# Graphing Power
+data <- data.frame(delta_trials, avg_power_nongroup, avg_power_group)
+ggplot(data, aes(x = delta_trials)) +
+  geom_line(aes(y = avg_power_nongroup), color = "blue", linetype = "solid", size = 1) +
+  geom_line(aes(y = avg_power_group), color = "red", linetype = "solid", size = 1) +
+  
+  geom_text(aes(x = max(delta_trials), y = max(avg_power_nongroup), label = "Base-eBH"), 
+            hjust = 1, vjust = 1, color = "blue") +
+  geom_text(aes(x = max(delta_trials), y = max(avg_power_group), label = "Grouping-eBH"), 
+            hjust = 1, vjust = -0.5, color = "red") +
+  
+  labs(title = "Comparing Power of Grouping vs. Non Grouping",
+       x = "Delta Values",
+       y = "Average Power Across Trials") +
+  
+  theme_minimal()
+```
+
