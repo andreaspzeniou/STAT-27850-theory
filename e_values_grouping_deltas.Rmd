@@ -7,6 +7,7 @@ date: "2023-11-27"
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
+library(tidyr)
 ```
 
 ```{r}
@@ -68,11 +69,18 @@ group_size <- 50
 alpha <- 0.1
 ```
 
+```{r}
+e_bh_storey <- function(TE,alpha){
+  p_vals_adjusted <- p.adjust(1 / TE, method = "BH")
+  rejected_indices <- which(p_vals_adjusted <= alpha)
+  return(rejected_indices)
+}
+```
 
 ```{r}
 # Comparison of Base e-BH vs. Grouping e-BH - Graphing FDR and Power for Various Deltas for both methods
 
-delta_trials <- seq(-6, -2, by = 0.25)
+delta_trials <- seq(-6, -0.25, by = 0.25)
 avg_fdr_nongroup <- c()
 avg_power_nongroup <- c()
 avg_fdr_group <- c()
@@ -214,7 +222,7 @@ for (del in delta_trials) {
     kept_adjusted_converted_evals <- p.adjust(kept_converted_evals_vect, method = "BH")
     kept_signal_indices <- which(kept_adjusted_converted_evals < alpha)
     
-    # Calculating FDR and Power for above procedure
+    # Calculating FDR and Power
     kept_total_discoveries <- length(kept_signal_indices)
     kept_true_discoveries <- sum(kept_signal_indices > n_null_groups & 
                                    kept_signal_indices < new_n & kept_signal_indices %% 2 == 1)
@@ -243,8 +251,9 @@ for (del in delta_trials) {
 
 ```
 
+
 ```{r}
-# Graphing FDR
+# Graphing FDR for Grouping vs. Non Grouping E BH
 data <- data.frame(delta_trials, avg_fdr_nongroup, avg_fdr_group)
 ggplot(data, aes(x = delta_trials)) +
   geom_line(aes(y = avg_fdr_nongroup), color = "blue", linetype = "solid", size = 1) +
@@ -263,7 +272,7 @@ ggplot(data, aes(x = delta_trials)) +
 ```
 
 ```{r}
-# Graphing Power
+# Graphing Power for Grouping vs. Non Grouping E BH
 data <- data.frame(delta_trials, avg_power_nongroup, avg_power_group)
 ggplot(data, aes(x = delta_trials)) +
   geom_line(aes(y = avg_power_nongroup), color = "blue", linetype = "solid", size = 1) +
@@ -281,3 +290,172 @@ ggplot(data, aes(x = delta_trials)) +
   theme_minimal()
 ```
 
+
+```{r}
+# Method 3 - Non Grouping with Storey-e-BH
+
+gam <- 0.01
+alpha_storey <- 0.1
+avg_fdr_storey <- c()
+avg_fdr_twostp_storey <- c()
+avg_power_storey <- c()
+avg_power_twostp_storey <- c()
+
+for (del in delta_trials) {
+  
+  # Shells for Trials
+  FDR_storey_vect <- c()
+  FDR_twostp_storey_vect <- c()
+  power_storey_vect <- c()
+  power_twostp_storey_vect <- c()
+  
+  #Running Trials
+  for (k in 1:trials) {
+    # Create sample
+    
+    list_evals <- list()
+    
+    for (i in 1:group_num) {
+      if (i <= 15) {
+        nulls <- generate_null_eval1(50, del)
+        list_evals <- append(list_evals, list(nulls))
+      } else {
+        full_group <- numeric(group_size)
+        for (i in 1:group_size) {
+          if (i %% 2 == 0) {
+            # Even indices: null e vals
+            full_group[i] <- generate_null_eval1(1, del)
+          } else {
+            # Odd indices: signal e vals
+            full_group[i] <- generate_signal_eval1(1, del)
+          }
+        }
+        list_evals <- append(list_evals, list(full_group))
+      }
+    }
+    
+    vect_evals <- unlist(list_evals)
+    
+    # Running Storey-E-BH on the entire set of 1000 e-values, ignoring the groups
+    sorted_e_values <- sort(vect_evals)
+    khat <- 0
+    for (k in (1:length(sorted_e_values))) {
+      first <- sorted_e_values[1:k]
+      if (mean(first) <= 1 + gam) {
+        khat <- k
+      } else {
+        break
+      }
+    }
+    pi_0_hat <- (1 + khat) / length(sorted_e_values)
+    beta <- alpha_storey / 10
+    N_e_vals <- length(sorted_e_values)
+    khat2 <- length(sorted_e_values[1/sorted_e_values > beta / N_e_vals])
+    pi_0_hat2 <- (khat2) / length(sorted_e_values)
+    
+    storey_indices <- e_bh_storey(sorted_e_values, alpha_storey/ pi_0_hat)
+    two_step_storey_indices <- e_bh_storey(sorted_e_values,(alpha_storey - beta) / pi_0_hat2)
+    
+    # Calculating FDR for Storey
+    total_discoveries <- length(storey_indices)
+    true_discoveries <- sum(storey_indices > 750 & storey_indices < 1000 & storey_indices %% 2 == 1)
+    fdr_ratio <- true_discoveries/total_discoveries
+    if (is.nan(fdr_ratio)) {
+      fdr_ratio <- 1
+    }
+    FDR_storey <- 1 - fdr_ratio
+    FDR_storey_vect <- c(FDR_storey_vect, FDR_storey)
+    
+    # Calculating Power for Storey
+    total_signals <- 125
+    power_ratio <- (total_signals - true_discoveries) / total_signals
+    if (is.nan(power_ratio)) {
+      power_ratio <- 1
+    }
+    power_storey <- 1 - power_ratio
+    power_storey_vect <- c(power_storey_vect, power_storey)
+    
+    # Calculating FDR for Two Step Storey
+    total_discoveries <- length(two_step_storey_indices)
+    true_discoveries <- sum(two_step_storey_indices > 750 & two_step_storey_indices < 1000 & two_step_storey_indices %% 2 == 1)
+    fdr_ratio <- true_discoveries/total_discoveries
+    if (is.nan(fdr_ratio)) {
+      fdr_ratio <- 1
+    }
+    FDR_twostp_storey <- 1 - fdr_ratio
+    FDR_twostp_storey_vect <- c(FDR_twostp_storey_vect, FDR_twostp_storey)
+    
+    # Calculating Power for Two Step Storey
+    total_signals <- 125
+    power_ratio <- (total_signals - true_discoveries) / total_signals
+    if (is.nan(power_ratio)) {
+      power_ratio <- 1
+    }
+    power_twostp_storey <- 1 - power_ratio
+    power_twostp_storey_vect <- c(power_twostp_storey_vect, power_twostp_storey)
+    
+  }
+  
+  avg_fdr_storey <- c(avg_fdr_storey, mean(FDR_storey_vect))
+  avg_fdr_twostp_storey <- c(avg_fdr_twostp_storey, mean(FDR_twostp_storey_vect))
+  avg_power_storey <- c(avg_power_storey, mean(power_storey_vect))
+  avg_power_twostp_storey <- c(avg_power_twostp_storey, mean(power_twostp_storey_vect))
+  
+}
+
+
+```
+
+
+```{r}
+# Creating a data frame
+data <- data.frame(
+  delta_trials = delta_trials,
+  avg_power_nongroup = avg_power_nongroup,
+  avg_power_storey = avg_power_storey,
+  avg_power_twostp_storey = avg_power_twostp_storey
+)
+
+# Reshaping data for ggplot
+data_long <- tidyr::gather(data, key = "Group", value = "Power", -delta_trials)
+
+# Plotting
+ggplot(data_long, aes(x = delta_trials, y = Power, color = Group)) +
+  geom_line() +
+  labs(
+    x = "Delta Trials",
+    y = "Average Power",
+    color = "Different Tests",
+    title = "Comparison of Average Power"
+  ) +
+  scale_color_discrete(labels = c(
+    "avg_power_nongroup" = "Label for Non-Group",
+    "avg_power_storey" = "Label for Storey",
+    "avg_power_twostp_storey" = "Label for Two-Step Storey"
+  ))
+
+```
+
+```{r}
+# Create a data frame with your vectors
+data <- data.frame(
+  delta_trials = delta_trials,
+  avg_fdr_nongroup = avg_fdr_nongroup,
+  avg_fdr_storey = avg_fdr_storey,
+  avg_fdr_twostp_storey = avg_fdr_twostp_storey
+)
+
+# Reshape data for ggplot
+data <- tidyr::gather(data, key = "variable", value = "value", -delta_trials)
+
+# Plot using ggplot
+ggplot(data, aes(x = delta_trials, y = value, color = variable)) +
+  geom_line() +
+  labs(
+    x = "Delta Trials",
+    y = "FDR Values",
+    color = "Different Tests"
+  ) +
+  theme_minimal()
+
+```
