@@ -294,7 +294,7 @@ ggplot(data, aes(x = delta_trials)) +
 ```{r}
 # Method 3 - Non Grouping with Storey-e-BH
 
-gam <- 0.01
+gam <- 0
 alpha_storey <- 0.1
 avg_fdr_storey <- c()
 avg_fdr_twostp_storey <- c()
@@ -310,7 +310,7 @@ for (del in delta_trials) {
   power_twostp_storey_vect <- c()
   
   #Running Trials
-  for (k in 1:trials) {
+  for (k in 1:trials*10) {
     # Create sample
     
     list_evals <- list()
@@ -339,10 +339,10 @@ for (del in delta_trials) {
     # Running Storey-E-BH on the entire set of 1000 e-values, ignoring the groups
     sorted_e_values <- sort(vect_evals)
     khat <- 0
-    for (k in (1:length(sorted_e_values))) {
-      first <- sorted_e_values[1:k]
+    for (k2 in (1:length(sorted_e_values))) {
+      first <- sorted_e_values[1:k2]
       if (mean(first) <= 1 + gam) {
-        khat <- k
+        khat <- k2
       } else {
         break
       }
@@ -353,8 +353,9 @@ for (del in delta_trials) {
     khat2 <- length(sorted_e_values[1/sorted_e_values > beta / N_e_vals])
     pi_0_hat2 <- (khat2) / length(sorted_e_values)
     
-    storey_indices <- e_bh_storey(sorted_e_values, alpha_storey/ pi_0_hat)
-    two_step_storey_indices <- e_bh_storey(sorted_e_values,(alpha_storey - beta) / pi_0_hat2)
+    storey_indices <- e_bh_storey(vect_evals, alpha_storey/ pi_0_hat)
+    
+    two_step_storey_indices <- e_bh_storey(vect_evals,(alpha_storey - beta) / pi_0_hat2)
     
     # Calculating FDR for Storey
     total_discoveries <- length(storey_indices)
