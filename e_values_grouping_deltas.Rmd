@@ -1,6 +1,8 @@
 ---
-title: "E-Values Grouping Deltas"
-output: html_document
+title: "Simulations for Grouping E-BH, Storey and Two Step Storey E-BH"
+output:
+  pdf_document: default
+  html_document: default
 date: "2023-11-27"
 ---
 
@@ -10,15 +12,13 @@ library(ggplot2)
 library(tidyr)
 ```
 
+This is the model used in our project to generate E values for simulation.
+
+Delta is the mean from the normal distribution from which the signals are picked from. The first n e-values come from the null distribution; the next total_samples - n e-values come from the alternate distribution
+
+
 ```{r}
-# Second Model
-
-#Delta is the mean from the normal distribution from which the signals are picked from
-#The first n e-values come from the null distribution; the next total_samples - n e-values 
-#come from the alternate distribution
-
 #Function that generates e_values
-
 gen_e_val <- function(null_prop=0.2, total_samples=1000, alpha=0.1, delta=-4) {
   
   num <- total_samples
@@ -60,6 +60,10 @@ generate_signal_eval1 <- function(num, d) {
 }
 ```
 
+\newpage
+
+## Testing a Group BH Procedure
+
 ```{r}
 # Define Constants
 n <- 1000
@@ -69,16 +73,17 @@ group_size <- 50
 alpha <- 0.1
 ```
 
-```{r}
-e_bh_storey <- function(TE,alpha){
-  p_vals_adjusted <- p.adjust(1 / TE, method = "BH")
-  rejected_indices <- which(p_vals_adjusted <= alpha)
-  return(rejected_indices)
-}
-```
+Here, the procedure that the project runs is first creating a specific sample that comprises of null groups as well as mixed groups (nulls and signals) that are from the original function that generates E values. We have 1000 total E values, with the first 750 being from all null (groups of 50), and the last 250 being 5 groups of 50, where 25 are null and 25 are signal e values.
+
+The base BH ignores the groups and runs e-BH, while the grouping BH takes into account the groups and uses a specific method of creating E_tildas (drawn from a Bernoulli distribution with probability 1/e), and chooses groups to keep.
+
+Our simulation tries different delta values for E value generation to see the overall affect of grouping on power and FDR (while delta values are varied)
+
+We then plot this as our results. We use 100 trials for each delta value and take the average as a measurement of FDR and power.
 
 ```{r}
-# Comparison of Base e-BH vs. Grouping e-BH - Graphing FDR and Power for Various Deltas for both methods
+# Comparison of Base e-BH vs. Grouping e-BH
+# Graphing FDR and Power for Various Deltas for both methods
 
 delta_trials <- seq(-6, -0.25, by = 0.25)
 avg_fdr_nongroup <- c()
@@ -152,6 +157,11 @@ for (del in delta_trials) {
   
 }
 
+```
+
+\newpage
+
+```{r}
 # Method 2 - Grouping
 
 for (del in delta_trials) {
@@ -251,6 +261,9 @@ for (del in delta_trials) {
 
 ```
 
+\newpage
+
+## Results
 
 ```{r}
 # Graphing FDR for Grouping vs. Non Grouping E BH
@@ -290,10 +303,22 @@ ggplot(data, aes(x = delta_trials)) +
   theme_minimal()
 ```
 
+\newpage
+
+## Storey E-BH and Two Step Storey E-BH
+
+Here, we are utilizing the same sample, but comparing Storey E-BH and Two Step Storey E-BH with the base E-BH model.
 
 ```{r}
 # Method 3 - Non Grouping with Storey-e-BH
+e_bh_storey <- function(TE,alpha){
+  p_vals_adjusted <- p.adjust(1 / TE, method = "BH")
+  rejected_indices <- which(p_vals_adjusted <= alpha)
+  return(rejected_indices)
+}
+```
 
+```{r}
 gam <- 0
 alpha_storey <- 0.1
 avg_fdr_storey <- c()
@@ -348,7 +373,7 @@ for (del in delta_trials) {
       }
     }
     pi_0_hat <- (1 + khat) / length(sorted_e_values)
-    beta <- alpha_storey / 10
+    beta <- alpha_storey / 100
     N_e_vals <- length(sorted_e_values)
     khat2 <- length(sorted_e_values[1/sorted_e_values > beta / N_e_vals])
     pi_0_hat2 <- (khat2) / length(sorted_e_values)
@@ -403,13 +428,13 @@ for (del in delta_trials) {
   avg_power_twostp_storey <- c(avg_power_twostp_storey, mean(power_twostp_storey_vect))
   
 }
-
-
 ```
 
+\newapge
+
+## Results
 
 ```{r}
-# Creating a data frame
 data <- data.frame(
   delta_trials = delta_trials,
   avg_power_nongroup = avg_power_nongroup,
@@ -417,28 +442,25 @@ data <- data.frame(
   avg_power_twostp_storey = avg_power_twostp_storey
 )
 
-# Reshaping data for ggplot
 data_long <- tidyr::gather(data, key = "Group", value = "Power", -delta_trials)
 
-# Plotting
 ggplot(data_long, aes(x = delta_trials, y = Power, color = Group)) +
   geom_line() +
   labs(
-    x = "Delta Trials",
+    x = "Delta for E Value Generation",
     y = "Average Power",
     color = "Different Tests",
     title = "Comparison of Average Power"
   ) +
   scale_color_discrete(labels = c(
-    "avg_power_nongroup" = "Label for Non-Group",
-    "avg_power_storey" = "Label for Storey",
-    "avg_power_twostp_storey" = "Label for Two-Step Storey"
+    "avg_power_nongroup" = "Base E-BH",
+    "avg_power_storey" = "Storey E-BH",
+    "avg_power_twostp_storey" = "Two Step Storey E-BH"
   ))
 
 ```
 
 ```{r}
-# Create a data frame with your vectors
 data <- data.frame(
   delta_trials = delta_trials,
   avg_fdr_nongroup = avg_fdr_nongroup,
@@ -446,17 +468,19 @@ data <- data.frame(
   avg_fdr_twostp_storey = avg_fdr_twostp_storey
 )
 
-# Reshape data for ggplot
 data <- tidyr::gather(data, key = "variable", value = "value", -delta_trials)
 
-# Plot using ggplot
 ggplot(data, aes(x = delta_trials, y = value, color = variable)) +
   geom_line() +
   labs(
-    x = "Delta Trials",
+    x = "Delta for E Value Generation",
     y = "FDR Values",
-    color = "Different Tests"
+    color = "Different Tests",
+    title = "Comparison of Average FDR"
   ) +
-  theme_minimal()
+  scale_color_discrete(labels = c(
+    "avg_fdr_nongroup" = "Base E-BH",
+    "avg_fdr_storey" = "Storey E-BH",
+    "avg_fdr_twostp_storey" = "Two Step Storey E-BH"))
 
 ```
