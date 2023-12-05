@@ -1398,7 +1398,7 @@ for (del in delta_trials) {
           }
           else{
             # odd index - signal e value which is dependent on the previous signal
-            full_group[j] <- full_group[j-2]- rchisq(1, df = 1)
+            full_group[j] <- full_group[j-2] + rchisq(1, df = 1)
           }
           
         }
