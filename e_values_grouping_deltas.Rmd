@@ -884,9 +884,11 @@ alpha_storey <- 0.1
 avg_fdr_storey <- c()
 avg_fdr_twostp_storey <- c()
 avg_fdr_natural_storey <- c()
+avg_fdr_base_ebh <- c()
 avg_power_storey <- c()
 avg_power_twostp_storey <- c()
 avg_power_natural_storey <- c()
+avg_power_base_ebh <- c()
 
 for (del in delta_trials) {
   
@@ -894,9 +896,11 @@ for (del in delta_trials) {
   FDR_storey_vect <- c()
   FDR_twostp_storey_vect <- c()
   FDR_natural_storey_vect <- c()
+  FDR_base_ebh <- c()
   power_storey_vect <- c()
   power_twostp_storey_vect <- c()
   power_natural_storey_vect <- c()
+  power_base_ebh <- c()
   
   #Running Trials
   for (k in 1:trials*10) {
@@ -1014,6 +1018,27 @@ for (del in delta_trials) {
     power_natural_storey <- 1 - power_ratio
     power_natural_storey_vect <- c(power_natural_storey_vect, power_natural_storey)
     
+    # calculating FDR for base e BH
+    
+    total_discoveries <- length(base_ebh_indices)
+    true_discoveries <- sum(base_ebh_indices > 0 & base_ebh_indices < 1000 & base_ebh_indices %% 2 == 1)
+    fdr_ratio <- true_discoveries/total_discoveries
+    if (is.nan(fdr_ratio)) {
+      fdr_ratio <- 1
+    }
+    FDR_base_ebh <- 1 - fdr_ratio
+    FDR_base_ebh_vect <- c(FDR_base_ebh_vect, FDR_base_ebh)
+    
+    # calculating power for base e BH
+    
+    total_signals <- 500
+    power_ratio <- (total_signals - true_discoveries) / total_signals
+    if (is.nan(power_ratio)) {
+      power_ratio <- 1
+    }
+    power_base_ebh <- 1 - power_ratio
+    power_base_ebh_vect <- c(power_base_ebh_vect, power_base_ebh)
+    
     
     
   }
@@ -1021,9 +1046,11 @@ for (del in delta_trials) {
   avg_fdr_storey <- c(avg_fdr_storey, mean(FDR_storey_vect))
   avg_fdr_twostp_storey <- c(avg_fdr_twostp_storey, mean(FDR_twostp_storey_vect))
   avg_fdr_natural_storey <- c(avg_fdr_natural_storey, mean(FDR_natural_storey_vect))
+  avg_fdr_base_ebh <- c(avg_fdr_base_ebh, mean(FDR_base_ebh_vect))
   avg_power_storey <- c(avg_power_storey, mean(power_storey_vect))
   avg_power_twostp_storey <- c(avg_power_twostp_storey, mean(power_twostp_storey_vect))
   avg_power_natural_storey <- c(avg_power_natural_storey, mean(power_natural_storey_vect))
+  avg_power_base_ebh <- c(avg_power_base_ebh, mean(power_base_ebh_vect))
   
 }
 ```
@@ -1033,7 +1060,7 @@ for (del in delta_trials) {
 ```{r}
 data <- data.frame(
   delta_trials = delta_trials,
-  avg_power_nongroup = avg_power_nongroup,
+  avg_power_base_ebh = avg_power_base_ebh,
   avg_power_storey = avg_power_storey,
   avg_power_twostp_storey = avg_power_twostp_storey,
   avg_power_natural_storey = avg_power_natural_storey
@@ -1050,7 +1077,7 @@ ggplot(data_long, aes(x = delta_trials, y = Power, color = Group)) +
     title = "Comparison of Average Power"
   ) +
   scale_color_discrete(labels = c(
-    "avg_power_nongroup" = "Base E-BH",
+    "avg_power_base_ebh" = "Base E-BH",
     "avg_power_storey" = "Storey E-BH",
     "avg_power_twostp_storey" = "Two Step Storey E-BH",
     "avg_power_natural_storey" = "Natural Storey E-BH"
@@ -1062,7 +1089,7 @@ ggplot(data_long, aes(x = delta_trials, y = Power, color = Group)) +
 ```{r}
 data <- data.frame(
   delta_trials = delta_trials,
-  avg_fdr_nongroup = avg_fdr_nongroup,
+  avg_fdr_base_ebh = avg_fdr_base_ebh,
   avg_fdr_storey = avg_fdr_storey,
   avg_fdr_twostp_storey = avg_fdr_twostp_storey,
   avg_fdr_natural_storey = avg_fdr_natural_storey
@@ -1079,7 +1106,7 @@ ggplot(data, aes(x = delta_trials, y = value, color = variable)) +
     title = "Comparison of Average FDR"
   ) +
   scale_color_discrete(labels = c(
-    "avg_fdr_nongroup" = "Base E-BH",
+    "avg_fdr_base_ebh" = "Base E-BH",
     "avg_fdr_storey" = "Storey E-BH",
     "avg_fdr_twostp_storey" = "Two Step Storey E-BH", 
     "avg_fdr_natural_storey" = "Natural Storey E-BH"))
@@ -1098,9 +1125,11 @@ alpha_storey <- 0.1
 avg_fdr_storey <- c()
 avg_fdr_twostp_storey <- c()
 avg_fdr_natural_storey <- c()
+avg_fdr_base_ebh <- c()
 avg_power_storey <- c()
 avg_power_twostp_storey <- c()
 avg_power_natural_storey <- c()
+avg_power_base_ebh <- c()
 
 for (del in delta_trials) {
   
@@ -1108,9 +1137,11 @@ for (del in delta_trials) {
   FDR_storey_vect <- c()
   FDR_twostp_storey_vect <- c()
   FDR_natural_storey_vect <- c()
+  FDR_base_ebh_vect <- c()
   power_storey_vect <- c()
   power_twostp_storey_vect <- c()
   power_natural_storey_vect <- c()
+  power_base_ebh_vect <- c()
   
   #Running Trials
   for (k in 1:trials*10) {
@@ -1132,6 +1163,246 @@ for (del in delta_trials) {
           full_group[j:(j+1)] <- generate_signal_null_eval_pair(delta = del, df = 3) # subtracting a chisquare with degree of freedom 3
         }
         full_group[20] <- generate_null_eval1(1, del)
+        list_evals <- append(list_evals, list(full_group))
+      }
+    }
+    
+    vect_evals <- unlist(list_evals)
+    
+    # Running Storey-E-BH on the entire set of 1000 e-values, ignoring the groups
+    sorted_e_values <- sort(vect_evals)
+    khat <- 0
+    for (k2 in (1:length(sorted_e_values))) {
+      first <- sorted_e_values[1:k2]
+      if (mean(first) <= 1 + gam) {
+        khat <- k2
+      } else {
+        break
+      }
+    }
+    pi_0_hat <- (1 + khat) / length(sorted_e_values)
+    beta <- alpha_storey / 100
+    N_e_vals <- length(sorted_e_values)
+    khat2 <- length(sorted_e_values[1/sorted_e_values > beta / N_e_vals])
+    pi_0_hat2 <- (khat2) / length(sorted_e_values)
+    
+    storey_indices <- e_bh_storey(vect_evals, alpha_storey/ pi_0_hat)
+    
+    two_step_storey_indices <- e_bh_storey(vect_evals,(alpha_storey - beta) / pi_0_hat2)
+    
+    # running the natural Storey e-BH function with gamma = .5
+    natural_storey_indices <- e_Storey_BH_natural(vect_evals, alpha, .5)
+    
+    # running the base e BH
+    
+    base_ebh_indices <- e_BH(vect_evals, alpha)
+    
+    # Calculating FDR for Storey
+    total_discoveries <- length(storey_indices)
+    true_discoveries <- sum(storey_indices > 0 & storey_indices < 1000 & storey_indices %% 2 == 1)
+    fdr_ratio <- true_discoveries/total_discoveries
+    if (is.nan(fdr_ratio)) {
+      fdr_ratio <- 1
+    }
+    FDR_storey <- 1 - fdr_ratio
+    FDR_storey_vect <- c(FDR_storey_vect, FDR_storey)
+    
+    # Calculating Power for Storey
+    total_signals <- 500
+    power_ratio <- (total_signals - true_discoveries) / total_signals
+    if (is.nan(power_ratio)) {
+      power_ratio <- 1
+    }
+    power_storey <- 1 - power_ratio
+    power_storey_vect <- c(power_storey_vect, power_storey)
+    
+    # Calculating FDR for Two Step Storey
+    total_discoveries <- length(two_step_storey_indices)
+    true_discoveries <- sum(two_step_storey_indices > 0 & two_step_storey_indices < 1000 & two_step_storey_indices %% 2 == 1)
+    fdr_ratio <- true_discoveries/total_discoveries
+    if (is.nan(fdr_ratio)) {
+      fdr_ratio <- 1
+    }
+    FDR_twostp_storey <- 1 - fdr_ratio
+    FDR_twostp_storey_vect <- c(FDR_twostp_storey_vect, FDR_twostp_storey)
+    
+    # Calculating Power for Two Step Storey
+    total_signals <- 500
+    power_ratio <- (total_signals - true_discoveries) / total_signals
+    if (is.nan(power_ratio)) {
+      power_ratio <- 1
+    }
+    power_twostp_storey <- 1 - power_ratio
+    power_twostp_storey_vect <- c(power_twostp_storey_vect, power_twostp_storey)
+    
+    # Calculating FDR for Natural Storey
+    
+    total_discoveries <- length(natural_storey_indices)
+    true_discoveries <- sum(natural_storey_indices > 0 & natural_storey_indices < 1000 & natural_storey_indices %% 2 == 1)
+    fdr_ratio <- true_discoveries/total_discoveries
+    if (is.nan(fdr_ratio)) {
+      fdr_ratio <- 1
+    }
+    FDR_natural_storey <- 1 - fdr_ratio
+    FDR_natural_storey_vect <- c(FDR_natural_storey_vect, FDR_natural_storey)
+    
+    # Calculating Power for Natural Storey
+    
+    total_signals <- 500
+    power_ratio <- (total_signals - true_discoveries) / total_signals
+    if (is.nan(power_ratio)) {
+      power_ratio <- 1
+    }
+    power_natural_storey <- 1 - power_ratio
+    power_natural_storey_vect <- c(power_natural_storey_vect, power_natural_storey)
+    
+    # calculating FDR for base e BH
+    
+    total_discoveries <- length(base_ebh_indices)
+    true_discoveries <- sum(base_ebh_indices > 0 & base_ebh_indices < 1000 & base_ebh_indices %% 2 == 1)
+    fdr_ratio <- true_discoveries/total_discoveries
+    if (is.nan(fdr_ratio)) {
+      fdr_ratio <- 1
+    }
+    FDR_base_ebh <- 1 - fdr_ratio
+    FDR_base_ebh_vect <- c(FDR_base_ebh_vect, FDR_base_ebh)
+    
+    # calculating power for base e BH
+    
+    total_signals <- 500
+    power_ratio <- (total_signals - true_discoveries) / total_signals
+    if (is.nan(power_ratio)) {
+      power_ratio <- 1
+    }
+    power_base_ebh <- 1 - power_ratio
+    power_base_ebh_vect <- c(power_base_ebh_vect, power_base_ebh)
+    
+    
+  }
+  
+  avg_fdr_storey <- c(avg_fdr_storey, mean(FDR_storey_vect))
+  avg_fdr_twostp_storey <- c(avg_fdr_twostp_storey, mean(FDR_twostp_storey_vect))
+  avg_fdr_natural_storey <- c(avg_fdr_natural_storey, mean(FDR_natural_storey_vect))
+  avg_fdr_base_ebh <- c(avg_fdr_base_ebh, mean(FDR_base_ebh_vect))
+  avg_power_storey <- c(avg_power_storey, mean(power_storey_vect))
+  avg_power_twostp_storey <- c(avg_power_twostp_storey, mean(power_twostp_storey_vect))
+  avg_power_natural_storey <- c(avg_power_natural_storey, mean(power_natural_storey_vect))
+  avg_power_base_ebh <- c(avg_power_base_ebh, mean(power_base_ebh_vect))
+}
+```
+
+
+```{r}
+data <- data.frame(
+  delta_trials = delta_trials,
+  avg_power_base_ebh = avg_power_base_ebh,
+  avg_power_storey = avg_power_storey,
+  avg_power_twostp_storey = avg_power_twostp_storey,
+  avg_power_natural_storey = avg_power_natural_storey
+)
+
+data_long <- tidyr::gather(data, key = "Group", value = "Power", -delta_trials)
+
+ggplot(data_long, aes(x = delta_trials, y = Power, color = Group)) +
+  geom_line() +
+  labs(
+    x = "Delta for E Value Generation",
+    y = "Average Power",
+    color = "Different Tests",
+    title = "Comparison of Average Power"
+  ) +
+  scale_color_discrete(labels = c(
+    "avg_power_base_ebh" = "Base E-BH",
+    "avg_power_storey" = "Storey E-BH",
+    "avg_power_twostp_storey" = "Two Step Storey E-BH",
+    "avg_power_natural_storey" = "Natural Storey E-BH"
+  ))
+
+```
+
+
+```{r}
+data <- data.frame(
+  delta_trials = delta_trials,
+  avg_fdr_base_ebh = avg_fdr_base_ebh,
+  avg_fdr_storey = avg_fdr_storey,
+  avg_fdr_twostp_storey = avg_fdr_twostp_storey,
+  avg_fdr_natural_storey = avg_fdr_natural_storey
+)
+
+data <- tidyr::gather(data, key = "variable", value = "value", -delta_trials)
+
+ggplot(data, aes(x = delta_trials, y = value, color = variable)) +
+  geom_line() +
+  labs(
+    x = "Delta for E Value Generation",
+    y = "FDR Values",
+    color = "Different Tests",
+    title = "Comparison of Average FDR"
+  ) +
+  scale_color_discrete(labels = c(
+    "avg_fdr_base_ebh" = "Base E-BH",
+    "avg_fdr_storey" = "Storey E-BH",
+    "avg_fdr_twostp_storey" = "Two Step Storey E-BH", 
+    "avg_fdr_natural_storey" = "Natural Storey E-BH"))
+
+```
+
+## Dependence test 3
+
+```{r}
+
+gam <- 0
+alpha_storey <- 0.1
+avg_fdr_storey <- c()
+avg_fdr_twostp_storey <- c()
+avg_fdr_natural_storey <- c()
+avg_fdr_base_ebh <- c()
+avg_power_storey <- c()
+avg_power_twostp_storey <- c()
+avg_power_natural_storey <- c()
+avg_power_base_ebh <- c()
+
+for (del in delta_trials) {
+  
+  # Shells for Trials
+  FDR_storey_vect <- c()
+  FDR_twostp_storey_vect <- c()
+  FDR_natural_storey_vect <- c()
+  FDR_base_ebh <- c()
+  power_storey_vect <- c()
+  power_twostp_storey_vect <- c()
+  power_natural_storey_vect <- c()
+  power_base_ebh <- c()
+  
+  #Running Trials
+  for (k in 1:trials*10) {
+    # Create sample
+    
+    list_evals <- list()
+    
+    for (i in 1:group_num) {
+      # Putting every group as mixed group here
+      if (i <= -1) {
+        nulls <- generate_null_eval1(50, del)
+        list_evals <- append(list_evals, list(nulls))
+      } else {
+        full_group <- numeric(group_size)
+        # only the last e value of the group will be generated independently, and the middle elements will be generated in dependent pairs where the signal is dependent on the null
+        full_group[1] <- generate_signal_eval1(1, del)
+        for (j in 2:20) {
+          # Create dependent null, signal pair using the function above
+          if (j %% 2 == 0){
+            # even index - null e value
+            full_group[j] <- generate_null_eval1(1, del)
+          }
+          else{
+            # odd index - signal e value which is dependent on the previous signal
+            full_group[j] <- full_group[j-2]- rchisq(1, df = 1)
+          }
+          
+        }
+        
         list_evals <- append(list_evals, list(full_group))
       }
     }
@@ -1221,25 +1492,45 @@ for (del in delta_trials) {
     power_natural_storey <- 1 - power_ratio
     power_natural_storey_vect <- c(power_natural_storey_vect, power_natural_storey)
     
+     # calculating FDR for base e BH
     
+    total_discoveries <- length(base_ebh_indices)
+    true_discoveries <- sum(base_ebh_indices > 0 & base_ebh_indices < 1000 & base_ebh_indices %% 2 == 1)
+    fdr_ratio <- true_discoveries/total_discoveries
+    if (is.nan(fdr_ratio)) {
+      fdr_ratio <- 1
+    }
+    FDR_base_ebh <- 1 - fdr_ratio
+    FDR_base_ebh_vect <- c(FDR_base_ebh_vect, FDR_base_ebh)
+    
+    # calculating power for base e BH
+    
+    total_signals <- 500
+    power_ratio <- (total_signals - true_discoveries) / total_signals
+    if (is.nan(power_ratio)) {
+      power_ratio <- 1
+    }
+    power_base_ebh <- 1 - power_ratio
+    power_base_ebh_vect <- c(power_base_ebh_vect, power_base_ebh)
     
   }
   
   avg_fdr_storey <- c(avg_fdr_storey, mean(FDR_storey_vect))
   avg_fdr_twostp_storey <- c(avg_fdr_twostp_storey, mean(FDR_twostp_storey_vect))
   avg_fdr_natural_storey <- c(avg_fdr_natural_storey, mean(FDR_natural_storey_vect))
+  avg_fdr_base_ebh <- c(avg_fdr_base_ebh, mean(FDR_base_ebh_vect))
   avg_power_storey <- c(avg_power_storey, mean(power_storey_vect))
   avg_power_twostp_storey <- c(avg_power_twostp_storey, mean(power_twostp_storey_vect))
   avg_power_natural_storey <- c(avg_power_natural_storey, mean(power_natural_storey_vect))
+  avg_power_base_ebh <- c(avg_power_base_ebh, mean(power_base_ebh_vect))
   
 }
 ```
 
-
 ```{r}
 data <- data.frame(
   delta_trials = delta_trials,
-  avg_power_nongroup = avg_power_nongroup,
+  avg_power_base_ebh = avg_power_base_ebh,
   avg_power_storey = avg_power_storey,
   avg_power_twostp_storey = avg_power_twostp_storey,
   avg_power_natural_storey = avg_power_natural_storey
@@ -1256,7 +1547,7 @@ ggplot(data_long, aes(x = delta_trials, y = Power, color = Group)) +
     title = "Comparison of Average Power"
   ) +
   scale_color_discrete(labels = c(
-    "avg_power_nongroup" = "Base E-BH",
+    "avg_power_base_ebh" = "Base E-BH",
     "avg_power_storey" = "Storey E-BH",
     "avg_power_twostp_storey" = "Two Step Storey E-BH",
     "avg_power_natural_storey" = "Natural Storey E-BH"
@@ -1268,7 +1559,7 @@ ggplot(data_long, aes(x = delta_trials, y = Power, color = Group)) +
 ```{r}
 data <- data.frame(
   delta_trials = delta_trials,
-  avg_fdr_nongroup = avg_fdr_nongroup,
+  avg_fdr_base_ebh = avg_fdr_base_ebh,
   avg_fdr_storey = avg_fdr_storey,
   avg_fdr_twostp_storey = avg_fdr_twostp_storey,
   avg_fdr_natural_storey = avg_fdr_natural_storey
@@ -1285,7 +1576,7 @@ ggplot(data, aes(x = delta_trials, y = value, color = variable)) +
     title = "Comparison of Average FDR"
   ) +
   scale_color_discrete(labels = c(
-    "avg_fdr_nongroup" = "Base E-BH",
+    "avg_fdr_base_ebh" = "Base E-BH",
     "avg_fdr_storey" = "Storey E-BH",
     "avg_fdr_twostp_storey" = "Two Step Storey E-BH", 
     "avg_fdr_natural_storey" = "Natural Storey E-BH"))
