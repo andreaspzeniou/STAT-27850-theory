@@ -100,6 +100,7 @@ delta <- -3
 rho <- 0
 sqr = sqrt(rho) 
 K0 <- 200
+K <- 500
 
 for (j in 1:NUM_TRIALS) {
   
